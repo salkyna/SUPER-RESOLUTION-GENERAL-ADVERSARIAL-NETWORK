@@ -1,23 +1,23 @@
-import glob
-import time
+import tensorflow as tf
+from keras import Input
+from keras.callbacks import TensorBoard
+from keras.applications import VGG19
+from keras.layers import BatchNormalization, Activation, LeakyReLU, Add, Dense
+from keras.layers.convolutional import Conv2D, UpSampling2D
+from keras.optimizers import Adam
+from keras.models import Model
+
+from scipy.misc import imread, imresize
 
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
-from keras import Input
-from keras.applications import VGG19
-from keras.callbacks import TensorBoard
-from keras.layers import BatchNormalization, Activation, LeakyReLU, Add, Dense
-from keras.layers.convolutional import Conv2D, UpSampling2D
-from keras.models import Model
-from keras.optimizers import Adam
-from scipy.misc import imread, imresize
 
+import glob
+import time
 
+# Residual Block
 def residual_block(x):
-    """
-    Residual block
-    """
+
     filters = [64, 64]
     kernel_size = 3
     strides = 1
@@ -32,16 +32,12 @@ def residual_block(x):
     res = Conv2D(filters=filters[1], kernel_size=kernel_size, strides=strides, padding=padding)(res)
     res = BatchNormalization(momentum=momentum)(res)
 
-    # Add res and x
     res = Add()([res, x])
     return res
 
-
+# Generator Network
 def build_generator():
-    """
-    Create a generator network using the hyperparameter values defined below
-    :return:
-    """
+  
     residual_blocks = 16
     momentum = 0.8
     input_shape = (64, 64, 3)
@@ -82,58 +78,55 @@ def build_generator():
     model = Model(inputs=[input_layer], outputs=[output], name='generator')
     return model
 
-
+# Discriminator Network
 def build_discriminator():
-    """
-    Create a discriminator network using the hyperparameter values defined below
-    :return:
-    """
+  
     leakyrelu_alpha = 0.2
     momentum = 0.8
     input_shape = (256, 256, 3)
 
     input_layer = Input(shape=input_shape)
 
-    # Add the first convolution block
+    # 1st Conv Block
     dis1 = Conv2D(filters=64, kernel_size=3, strides=1, padding='same')(input_layer)
     dis1 = LeakyReLU(alpha=leakyrelu_alpha)(dis1)
 
-    # Add the 2nd convolution block
+    # 2nd Conv Block
     dis2 = Conv2D(filters=64, kernel_size=3, strides=2, padding='same')(dis1)
     dis2 = LeakyReLU(alpha=leakyrelu_alpha)(dis2)
     dis2 = BatchNormalization(momentum=momentum)(dis2)
 
-    # Add the third convolution block
+    # 3rd Conv Block
     dis3 = Conv2D(filters=128, kernel_size=3, strides=1, padding='same')(dis2)
     dis3 = LeakyReLU(alpha=leakyrelu_alpha)(dis3)
     dis3 = BatchNormalization(momentum=momentum)(dis3)
 
-    # Add the fourth convolution block
+    # 4th Conv Block
     dis4 = Conv2D(filters=128, kernel_size=3, strides=2, padding='same')(dis3)
     dis4 = LeakyReLU(alpha=leakyrelu_alpha)(dis4)
     dis4 = BatchNormalization(momentum=0.8)(dis4)
 
-    # Add the fifth convolution block
+    # 5th Conv Block
     dis5 = Conv2D(256, kernel_size=3, strides=1, padding='same')(dis4)
     dis5 = LeakyReLU(alpha=leakyrelu_alpha)(dis5)
     dis5 = BatchNormalization(momentum=momentum)(dis5)
 
-    # Add the sixth convolution block
+    # 6th Conv Block
     dis6 = Conv2D(filters=256, kernel_size=3, strides=2, padding='same')(dis5)
     dis6 = LeakyReLU(alpha=leakyrelu_alpha)(dis6)
     dis6 = BatchNormalization(momentum=momentum)(dis6)
 
-    # Add the seventh convolution block
+    # 7th Conv Block
     dis7 = Conv2D(filters=512, kernel_size=3, strides=1, padding='same')(dis6)
     dis7 = LeakyReLU(alpha=leakyrelu_alpha)(dis7)
     dis7 = BatchNormalization(momentum=momentum)(dis7)
 
-    # Add the eight convolution block
+    # 8th Conv Block
     dis8 = Conv2D(filters=512, kernel_size=3, strides=2, padding='same')(dis7)
     dis8 = LeakyReLU(alpha=leakyrelu_alpha)(dis8)
     dis8 = BatchNormalization(momentum=momentum)(dis8)
 
-    # Add a dense layer
+    # Dense Layer
     dis9 = Dense(units=1024)(dis8)
     dis9 = LeakyReLU(alpha=0.2)(dis9)
 
@@ -143,11 +136,9 @@ def build_discriminator():
     model = Model(inputs=[input_layer], outputs=[output], name='discriminator')
     return model
 
-
+# VGG network to extract image features
 def build_vgg():
-    """
-    Build VGG network to extract image features
-    """
+ 
     input_shape = (256, 256, 3)
 
     # Load a pre-trained VGG19 model trained on 'Imagenet' dataset
@@ -163,9 +154,9 @@ def build_vgg():
     model = Model(inputs=[input_layer], outputs=[features])
     return model
 
-
+# Make a list of all images inside the data directory
 def sample_images(data_dir, batch_size, high_resolution_shape, low_resolution_shape):
-    # Make a list of all images inside the data directory
+    
     all_images = glob.glob(data_dir)
 
     # Choose a random batch of images
@@ -194,12 +185,9 @@ def sample_images(data_dir, batch_size, high_resolution_shape, low_resolution_sh
     # Convert the lists to Numpy NDArrays
     return np.array(high_resolution_images), np.array(low_resolution_images)
 
-
+#  Save low-resolution, high-resolution(original) and generated high-resolution images in a single image
 def save_images(low_resolution_image, original_image, generated_image, path):
-    """
-    Save low-resolution, high-resolution(original) and
-    generated high-resolution images in a single image
-    """
+  
     fig = plt.figure()
     ax = fig.add_subplot(1, 3, 1)
     ax.imshow(low_resolution_image)
@@ -218,11 +206,9 @@ def save_images(low_resolution_image, original_image, generated_image, path):
 
     plt.savefig(path)
 
-
+# Write scalars to Tensorboard
 def write_log(callback, name, value, batch_no):
-    """
-    Write scalars to Tensorboard
-    """
+   
     summary = tf.Summary()
     summary_value = summary.value.add()
     summary_value.simple_value = value
