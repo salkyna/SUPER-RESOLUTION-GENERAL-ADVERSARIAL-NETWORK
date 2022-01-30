@@ -8,4 +8,4 @@ The following are the steps to set up the project:
 2. Install dependencies using "pip install -r requirements.txt"
 3. Create essential folders like 1. logs 2. results 3. data
 4. Download 'img_align_celeba.zip' from "https://drive.google.com/drive/folders/0B7EVK8r0v71pTUZsaXdaSnZBZzg"
-5. Train the model by executing "python3 run.py"
+5. Train the model by executing "python3 main.py"
